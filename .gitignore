@@ -1,0 +1,6 @@
+# Klartext-Inventarliste NIEMALS committen – das Repository ist öffentlich!
+inventar*.txt
+*.txt
+!tools/*.txt
+node_modules/
+.DS_Store

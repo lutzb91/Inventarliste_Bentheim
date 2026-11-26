@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#1f5f8b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Inventar">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Inventar</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Passwort-Eingabe -->
+  <main id="login" class="login" hidden>
+    <img src="icons/icon.svg" alt="" class="login-icon" width="72" height="72">
+    <h1>Inventar</h1>
+    <form id="login-form" autocomplete="on">
+      <label for="password">Passwort</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit" id="login-btn">Entsperren</button>
+      <p id="login-error" class="error" role="alert" hidden></p>
+    </form>
+  </main>
+
+  <!-- Suche -->
+  <div id="app" hidden>
+    <header class="top">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="q" type="search" placeholder="Suchen … oder Kistennummer" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Suche">
+        <button id="clear" class="clear" type="button" aria-label="Suche leeren" hidden>×</button>
+      </div>
+      <p id="status" class="status" aria-live="polite"></p>
+    </header>
+    <ul id="results" class="results"></ul>
+    <footer class="foot">
+      <span id="updated"></span>
+      <button id="logout" type="button" class="link">Passwort vergessen lassen</button>
+    </footer>
+  </div>
+
+  <noscript>Bitte JavaScript aktivieren.</noscript>
+  <script src="app.js"></script>
+</body>
+</html>

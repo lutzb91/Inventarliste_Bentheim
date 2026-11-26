@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="0" fill="#1f5f8b"/>
+  <!-- Kiste -->
+  <path d="M120 200 L256 140 L392 200 L392 350 L256 410 L120 350 Z" fill="#f2c46d"/>
+  <path d="M120 200 L256 260 L392 200 L256 140 Z" fill="#f7d896"/>
+  <path d="M256 260 L256 410 L392 350 L392 200 Z" fill="#d9a54a"/>
+  <path d="M188 170 L324 230 L324 280 L300 270 L300 240 L164 180 Z" fill="#c48e35" opacity=".55"/>
+  <!-- Lupe -->
+  <circle cx="330" cy="318" r="62" fill="#ffffff" fill-opacity=".25" stroke="#ffffff" stroke-width="22"/>
+  <path d="M374 362 L426 414" stroke="#ffffff" stroke-width="30" stroke-linecap="round"/>
+</svg>
