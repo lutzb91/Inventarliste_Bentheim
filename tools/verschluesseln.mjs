@@ -3,7 +3,7 @@
 //
 //   node tools/verschluesseln.mjs inventar.txt
 //
-// Format pro Zeile:  <Menge>x <Name> (<Kistennummer>)   – Menge optional
+// Format pro Zeile:  <Menge>x <Name> (<Kistennummer>)   – ohne Menge gilt 1
 //   z. B.            3x Verlängerungskabel (12)
 //                    Luftballons (4)
 // Leere Zeilen und Zeilen mit # am Anfang werden ignoriert.
@@ -31,7 +31,7 @@ export function parseList(text) {
     if (!line || line.startsWith('#')) return;
     const m = line.match(LINE);
     if (!m) { errors.push(`Zeile ${i + 1}: "${line}"`); return; }
-    items.push({ qty: m[1] ? m[1].replace('.', ',') : '', name: m[2], box: m[3] });
+    items.push({ qty: m[1] ? m[1].replace('.', ',') : '1', name: m[2], box: m[3] });
   });
   return { items, errors };
 }

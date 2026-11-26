@@ -8,7 +8,7 @@ Kleine Web-App zum Durchsuchen der Inventarliste: In welcher Kiste liegt was?
 
 ## Liste aktualisieren
 
-1. Liste als Textdatei speichern, z. B. `inventar.txt` (wird von Git ignoriert), eine Zeile pro Gegenstand, die Menge ist optional:
+1. Liste als Textdatei speichern, z. B. `inventar.txt` (wird von Git ignoriert), eine Zeile pro Gegenstand (ohne Mengenangabe gilt Menge 1):
    ```
    3x Verlängerungskabel (12)
    Luftballons (4)
