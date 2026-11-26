@@ -8,10 +8,10 @@ Kleine Web-App zum Durchsuchen der Inventarliste: In welcher Kiste liegt was?
 
 ## Liste aktualisieren
 
-1. Liste als Textdatei speichern, z. B. `inventar.txt` (wird von Git ignoriert), eine Zeile pro Gegenstand:
+1. Liste als Textdatei speichern, z. B. `inventar.txt` (wird von Git ignoriert), eine Zeile pro Gegenstand, die Menge ist optional:
    ```
    3x Verlängerungskabel (12)
-   1x Akkuschrauber (3)
+   Luftballons (4)
    ```
 2. Verschlüsseln (Node.js ≥ 18):
    ```

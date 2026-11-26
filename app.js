@@ -49,17 +49,20 @@ async function loadEncrypted() {
 }
 
 /* ---------- Normalisierung & Suche ---------- */
+// Zwei Schreibweisen: "ä" → "ae" (Standard) und "ä" → "a" (locker),
+// damit "kölsch", "koelsch" und "kolsch" gleichermaßen finden.
 const FOLD = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' };
+const FOLD_LOOSE = { 'ä': 'a', 'ö': 'o', 'ü': 'u', 'ß': 'ss' };
 
 // Liefert den normalisierten Text plus Zuordnung jedes Zeichens zur Originalposition
 // (für die Markierung der Treffer).
-function normalizeMapped(str) {
+function normalizeMapped(str, fold = FOLD) {
   let norm = '';
   const map = [];
   const lower = str.toLowerCase();
   for (let i = 0; i < lower.length; i++) {
     const ch = lower[i];
-    let out = FOLD[ch];
+    let out = fold[ch];
     if (out === undefined) {
       out = ch.normalize('NFD').replace(/[̀-ͯ]/g, '');
       if (!/^[a-z0-9]*$/.test(out)) out = ' ';
@@ -68,7 +71,7 @@ function normalizeMapped(str) {
   }
   return { norm, map };
 }
-const normalize = (s) => normalizeMapped(s).norm.replace(/\s+/g, ' ').trim();
+const normalize = (s, fold) => normalizeMapped(s, fold).norm.replace(/\s+/g, ' ').trim();
 
 // Damerau-Levenshtein (optimal string alignment), bricht früh ab
 function distance(a, b, max) {
@@ -94,66 +97,94 @@ function distance(a, b, max) {
   return prev[b.length];
 }
 
+const splitWords = (s) => s.split(/\s+/).filter(Boolean);
+
 function prepareItems(raw) {
   return raw.map((it, idx) => {
     const { norm, map } = normalizeMapped(it.name);
-    const words = norm.split(/\s+/).filter(Boolean);
-    return { ...it, idx, norm, map, words, compact: words.join('') };
+    const { norm: loose, map: lmap } = normalizeMapped(it.name, FOLD_LOOSE);
+    const words = splitWords(norm);
+    const lwords = splitWords(loose);
+    return {
+      ...it, idx, norm, map, loose, lmap, words, lwords,
+      compact: words.join(''), lcompact: lwords.join(''),
+      boxNorm: normalize(String(it.box)),
+    };
   });
 }
 
-// Bewertet ein Suchwort gegen einen Gegenstand. 0 = kein Treffer.
+// Bewertet ein Suchwort gegen einen Gegenstand.
+// Ergebnis: { score, fuzzy } – score 0 = kein Treffer, fuzzy = nur ähnlich (Tippfehler).
 function scoreToken(t, it) {
-  if (/^\d+$/.test(t) && normalize(String(it.box)) === t) return 90;
+  if (/^\d+$/.test(t.n) && it.boxNorm === t.n) return { score: 110, fuzzy: false };
+
   let best = 0;
-  for (const w of it.words) {
-    if (w === t) return 100;
-    if (w.startsWith(t)) best = Math.max(best, 80);
+  for (const [ws, q] of [[it.words, t.n], [it.lwords, t.l]]) {
+    for (const w of ws) {
+      if (w === q) return { score: 100, fuzzy: false };
+      if (w.startsWith(q)) best = Math.max(best, 80);
+    }
   }
-  if (best) return best;
-  if (it.norm.includes(t) || it.compact.includes(t)) return 60;
+  if (best) return { score: best, fuzzy: false };
+  if (it.norm.includes(t.n) || it.compact.includes(t.n) ||
+      it.loose.includes(t.l) || it.lcompact.includes(t.l)) return { score: 60, fuzzy: false };
 
   // Tippfehler-Toleranz erst ab 4 Zeichen
-  if (t.length < 4) return 0;
-  const max = t.length >= 8 ? 2 : 1;
+  if (t.n.length < 4) return { score: 0, fuzzy: true };
+  const q = t.n;
+  const max = q.length >= 6 ? 2 : 1;
   for (const w of it.words) {
     const d = Math.min(
-      distance(t, w, max),
-      w.length > t.length ? distance(t, w.slice(0, t.length), max) : max + 1);
+      distance(q, w, max),
+      w.length > q.length ? distance(q, w.slice(0, q.length), max) : max + 1);
     if (d <= max) best = Math.max(best, 45 - d * 10);
-    // Teilwort in zusammengesetzten Wörtern (z. B. "schraubenzieher")
-    if (!best && w.length > t.length + 1) {
-      for (let s = 1; s + t.length <= w.length; s++) {
-        if (distance(t, w.substr(s, t.length), max) <= max) { best = 25; break; }
+    // Teilwort mit Tippfehler in zusammengesetzten Wörtern (z. B. "kreuzschraubenzieher")
+    if (!best && q.length >= 6 && w.length > q.length + 1) {
+      for (let s = 1; s + q.length <= w.length; s++) {
+        if (distance(q, w.substr(s, q.length), 1) <= 1) { best = 25; break; }
       }
     }
   }
-  return best;
+  return { score: best, fuzzy: true };
 }
 
 function parseQuery(q) {
-  let n = normalize(q);
   // "kiste 12", "k 12", "nr 12", "#12" → Kistennummer
-  n = n.replace(/^(kiste|kisten|k|nr|nummer)\s+(?=\d+$)/, '');
-  return n ? n.split(' ') : [];
+  const strip = (s) => s.replace(/^(kiste|kisten|k|nr|nummer)\s+(?=\d+$)/, '');
+  const n = splitWords(strip(normalize(q)));
+  const l = splitWords(strip(normalize(q, FOLD_LOOSE)));
+  if (n.length !== l.length) return n.map((x) => ({ n: x, l: x }));
+  return n.map((x, i) => ({ n: x, l: l[i] }));
 }
 
 function search(q) {
+  // "kiste 4" → nur der Inhalt von Kiste 4
+  const box = normalize(q).match(/^(?:kiste|kisten|k|nr|nummer)\s*(\d+)$/);
+  if (box) {
+    const hits = items.filter((it) => it.boxNorm === box[1])
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+      .map((it) => ({ it, score: 0, fuzzy: false }));
+    return { tokens: [], hits, fuzzy: false };
+  }
   const tokens = parseQuery(q);
   if (!tokens.length) return null;
-  const hits = [];
+  let hits = [];
   for (const it of items) {
     let total = 0;
+    let fuzzy = false;
     let ok = true;
     for (const t of tokens) {
-      const s = scoreToken(t, it);
-      if (!s) { ok = false; break; }
-      total += s;
+      const r = scoreToken(t, it);
+      if (!r.score) { ok = false; break; }
+      total += r.score;
+      fuzzy = fuzzy || r.fuzzy;
     }
-    if (ok) hits.push({ it, score: total });
+    if (ok) hits.push({ it, score: total, fuzzy });
   }
+  // Gibt es echte Treffer, werden reine Ähnlichkeitstreffer ausgeblendet.
+  if (hits.some((h) => !h.fuzzy)) hits = hits.filter((h) => !h.fuzzy);
   hits.sort((a, b) => b.score - a.score || compareBox(a.it.box, b.it.box) || a.it.name.localeCompare(b.it.name, 'de'));
-  return { tokens, hits };
+  return { tokens, hits, fuzzy: hits.length > 0 && hits.every((h) => h.fuzzy) };
 }
 
 function compareBox(a, b) {
@@ -167,13 +198,17 @@ function escapeHtml(s) {
 
 function highlight(it, tokens) {
   const ranges = [];
-  for (const t of tokens) {
+  const find = (text, map, q) => {
     let from = 0;
     let pos;
-    while (t && (pos = it.norm.indexOf(t, from)) !== -1) {
-      ranges.push([it.map[pos], it.map[pos + t.length - 1] + 1]);
-      from = pos + t.length;
+    while (q && (pos = text.indexOf(q, from)) !== -1) {
+      ranges.push([map[pos], map[pos + q.length - 1] + 1]);
+      from = pos + q.length;
     }
+  };
+  for (const t of tokens) {
+    find(it.norm, it.map, t.n);
+    find(it.loose, it.lmap, t.l);
   }
   if (!ranges.length) return escapeHtml(it.name);
   ranges.sort((a, b) => a[0] - b[0]);
@@ -192,7 +227,8 @@ function highlight(it, tokens) {
 }
 
 function row(it, tokens) {
-  return '<li><span class="qty">' + escapeHtml(String(it.qty)) + '×</span>' +
+  const qty = it.qty ? escapeHtml(String(it.qty)) + '×' : '';
+  return '<li><span class="qty">' + qty + '</span>' +
     '<span class="name">' + highlight(it, tokens) + '</span>' +
     '<span class="box"><small>Kiste</small><b>' + escapeHtml(String(it.box)) + '</b></span></li>';
 }
@@ -228,7 +264,7 @@ function render() {
   }
   list.innerHTML = res.hits.map((h) => row(h.it, res.tokens)).join('');
   const boxes = [...new Set(res.hits.map((h) => h.it.box))].sort(compareBox);
-  $('status').textContent = res.hits.length + (res.hits.length === 1 ? ' Treffer' : ' Treffer') +
+  $('status').textContent = (res.fuzzy ? 'Ähnliche Treffer: ' : '') + res.hits.length + ' Treffer' +
     ' · ' + (boxes.length === 1 ? 'Kiste ' : 'Kisten ') + boxes.join(', ');
 }
 

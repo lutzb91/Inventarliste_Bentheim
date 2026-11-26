@@ -1,7 +1,7 @@
 'use strict';
 
 // Offline-Unterstützung: erst Netz (damit Updates ankommen), sonst Cache.
-const CACHE = 'inventar-v1';
+const CACHE = 'inventar-v2';
 const FILES = [
   './',
   'index.html',

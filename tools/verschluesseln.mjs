@@ -3,8 +3,9 @@
 //
 //   node tools/verschluesseln.mjs inventar.txt
 //
-// Format pro Zeile:  <Menge>x <Name> (<Kistennummer>)
+// Format pro Zeile:  <Menge>x <Name> (<Kistennummer>)   – Menge optional
 //   z. B.            3x Verlängerungskabel (12)
+//                    Luftballons (4)
 // Leere Zeilen und Zeilen mit # am Anfang werden ignoriert.
 //
 // Das Passwort wird abgefragt oder aus der Umgebungsvariable INVENTAR_PASSWORT gelesen.
@@ -20,7 +21,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'data.enc.json');
 const ITERATIONS = 600000;
 
-const LINE = /^\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(.+?)\s*\(\s*(?:kiste\s*)?([^()]+?)\s*\)\s*$/i;
+const LINE = /^\s*(?:(\d+(?:[.,]\d+)?)\s*[x×*]\s*)?(.+?)\s*\(\s*(?:kiste\s*)?([^()]+?)\s*\)\s*$/i;
 
 export function parseList(text) {
   const items = [];
@@ -30,7 +31,7 @@ export function parseList(text) {
     if (!line || line.startsWith('#')) return;
     const m = line.match(LINE);
     if (!m) { errors.push(`Zeile ${i + 1}: "${line}"`); return; }
-    items.push({ qty: m[1].replace(',', '.'), name: m[2], box: m[3] });
+    items.push({ qty: m[1] ? m[1].replace('.', ',') : '', name: m[2], box: m[3] });
   });
   return { items, errors };
 }
@@ -58,7 +59,7 @@ async function main() {
 
   const { items, errors } = parseList(readFileSync(file, 'utf8'));
   if (errors.length) {
-    console.error('Diese Zeilen haben nicht das Format "<Menge>x <Name> (<Kiste>)":');
+    console.error('Diese Zeilen haben nicht das Format "[<Menge>x] <Name> (<Kiste>)":');
     errors.forEach((e) => console.error('  ' + e));
     process.exit(1);
   }
